@@ -1,22 +1,22 @@
 #!/system/bin/sh
 
 # ==========================================
-# KONFIGURASI FILE & TARGET (HYBRID MODE)
+# KONFIGURASI FILE & TARGET (DYNAMIC ADB)
 # ==========================================
 CONFIG_FILE="/sdcard/.reconnectx_config"
 PACKAGE_NAME="com.roblox.client"
 CHECK_INTERVAL=10
-RECONNECT_INTERVAL=3600 # 1 Jam dalam detik (3600s)
+RECONNECT_INTERVAL=3900 # 65 Menit dalam detik (65 * 60 = 3900s)
 
 # Default Variables
-PLACE_ID=""
-WEBHOOK_URL=""
+PLACE_ID="https://www.roblox.com/share?code=0e7b839dff54a945a41ea04b2ae3c428&type=Server"
+WEBHOOK_URL="https://discord.com/api/webhooks/1530388785660166288/dyPle0M28Kgdv4o5koPGGvr7m7b0bw2A5U068BoN4pU4wd7R8eEihF_jxuA1GgElU5ol"
 AUTO_REJOIN="ON"
 KILL_MODE="OFF"
-AUTO_CLEAR_CACHE="OFF"
+AUTO_CLEAR_CACHE="ON"
 
-# Target ADB Khusus Emulator
-TARGET_ADB="emulator-5554"
+# Deteksi Otomatis Target ADB yang Aktif (Tanpa Default)
+TARGET_ADB=$(adb devices 2>/dev/null | grep -w "device" | awk 'NR==1 {print $1}')
 
 # ==========================================
 # FUNGSI LOAD & SAVE CONFIG
@@ -38,13 +38,21 @@ EOF
 }
 
 # ==========================================
-# DISCORD WEBHOOK (HYBRID SAFE LOGGING)
+# AUTO-INSTALL DEPENDENCY (ADB & CURL)
+# ==========================================
+if ! command -v adb >/dev/null 2>&1 || ! command -v curl >/dev/null 2>&1; then
+    echo "📦 Mempersiapkan dependensi sistem (adb & curl)..."
+    pkg update -y >/dev/null 2>&1
+    pkg install android-tools curl -y >/dev/null 2>&1
+fi
+
+# ==========================================
+# DISCORD WEBHOOK (TERMUX / LINUX CURL METHOD)
 # ==========================================
 send_webhook() {
     MSG="$1"
     if [ -n "$WEBHOOK_URL" ]; then
-        # Ditangani secara aman di emulator polosan tanpa wget/curl/python
-        echo "[DISCORD_NOTIF]: $MSG"
+        curl -s -X POST -H "Content-Type: application/json" -d "{\"content\": \"$MSG\"}" "$WEBHOOK_URL" > /dev/null 2>&1
     fi
 }
 
@@ -61,9 +69,17 @@ check_roblox() {
 }
 
 # ==========================================
-# ENGINE MONITORING (+ 1 HOUR TIMER)
+# ENGINE MONITORING (+ 65 MINUTE TIMER)
 # ==========================================
 start_engine() {
+    if [ -z "$TARGET_ADB" ]; then
+        clear
+        echo "❌ Error: Tidak ada perangkat ADB yang terdeteksi!"
+        sleep 2
+        show_menu
+        return
+    fi
+
     case "$PLACE_ID" in
         http*) LAUNCH_URL="$PLACE_ID" ;;
         *)     LAUNCH_URL="roblox://experiences/start?placeId=$PLACE_ID" ;;
@@ -71,7 +87,7 @@ start_engine() {
 
     clear
     echo "=================================================="
-    echo "       ReconnectX Hybrid Engine (1H Timer)        "
+    echo "       ReconnectX Dynamic Engine (65M Timer)      "
     echo "=================================================="
     echo " Target   : $PLACE_ID"
     echo " Rejoin   : $AUTO_REJOIN | Kill: $KILL_MODE"
@@ -84,7 +100,7 @@ start_engine() {
     adb connect "$TARGET_ADB" > /dev/null 2>&1
     sleep 2
 
-    send_webhook "🚀 **ReconnectX Engine Active!** Target Place ID: $PLACE_ID (Auto-refresh tiap 1 Jam)"
+    send_webhook "🚀 **ReconnectX Engine Active!** Target ADB: $TARGET_ADB | Place ID: $PLACE_ID (Auto-refresh tiap 65 Menit)"
 
     IS_RUNNING=0
     SESSION_START_TIME=$(date +%s)
@@ -95,9 +111,15 @@ start_engine() {
 
         if [ "$ELAPSED_TIME" -ge "$RECONNECT_INTERVAL" ]; then
             TIME_STAMP=$(date '+%H:%M:%S')
-            echo "[$TIME_STAMP] ⏰ Waktu 1 jam tercapai. Melakukan scheduled restart..."
-            send_webhook "⏰ **[$TIME_STAMP]** Mencapai batas waktu 1 jam. Melakukan refresh game otomatis..."
+            echo "[$TIME_STAMP] ⏰ Waktu 65 menit tercapai. Melakukan scheduled refresh..."
+            send_webhook "⏰ **[$TIME_STAMP]** Mencapai batas waktu 65 menit. Melakukan refresh game otomatis..."
             
+            if [ "$AUTO_CLEAR_CACHE" = "ON" ]; then
+                echo "[$TIME_STAMP] 🧹 Clearing Cache (Tanpa hapus data)..."
+                adb -s "$TARGET_ADB" shell "rm -rf /sdcard/Android/data/$PACKAGE_NAME/cache/*" > /dev/null 2>&1
+                adb -s "$TARGET_ADB" shell "rm -rf /data/data/$PACKAGE_NAME/cache/*" > /dev/null 2>&1
+            fi
+
             adb -s "$TARGET_ADB" shell "am force-stop $PACKAGE_NAME" > /dev/null 2>&1
             sleep 2
             adb -s "$TARGET_ADB" shell "am start -a android.intent.action.VIEW -d '$LAUNCH_URL'" > /dev/null 2>&1
@@ -121,8 +143,9 @@ start_engine() {
             echo "[$TIME_STAMP] ⚠️ Roblox Disconnect / Mati!"
 
             if [ "$AUTO_CLEAR_CACHE" = "ON" ]; then
-                echo "[$TIME_STAMP] 🧹 Clearing Cache..."
-                adb -s "$TARGET_ADB" shell "pm clear $PACKAGE_NAME" > /dev/null 2>&1
+                echo "[$TIME_STAMP] 🧹 Clearing Cache (Tanpa hapus data)..."
+                adb -s "$TARGET_ADB" shell "rm -rf /sdcard/Android/data/$PACKAGE_NAME/cache/*" > /dev/null 2>&1
+                adb -s "$TARGET_ADB" shell "rm -rf /data/data/$PACKAGE_NAME/cache/*" > /dev/null 2>&1
             fi
 
             if [ "$KILL_MODE" = "ON" ]; then
@@ -156,6 +179,7 @@ menu_rejoin() {
     echo "=================================================="
     echo "                 Rejoin Settings                  "
     echo "=================================================="
+    echo " Target ADB     : ${TARGET_ADB:-'Tidak Ada'}"
     echo " Target Link/ID : ${PLACE_ID:-'Kosong'}"
     echo " Auto Rejoin    : [$AUTO_REJOIN]"
     echo "--------------------------------------------------"
@@ -185,7 +209,12 @@ menu_rejoin() {
             menu_rejoin
             ;;
         3)
-            if [ -z "$PLACE_ID" ]; then
+            if [ -z "$TARGET_ADB" ]; then
+                echo ""
+                echo "❌ Error: Tidak ada perangkat ADB yang terhubung!"
+                sleep 2
+                menu_rejoin
+            elif [ -z "$PLACE_ID" ]; then
                 echo ""
                 echo "❌ Harap isi Place ID / VIP Link dulu!"
                 sleep 2
@@ -236,19 +265,67 @@ menu_settings() {
 }
 
 # ==========================================
+# SUB-MENU DISCORD WEBHOOK
+# ==========================================
+menu_webhook() {
+    clear
+    echo "=================================================="
+    echo "                 Discord Webhook                  "
+    echo "=================================================="
+    echo " Status URL : ${WEBHOOK_URL:-'Belum Diatur'}"
+    echo "--------------------------------------------------"
+    echo " [1] Test Webhook"
+    echo " [2] Set / Ganti Webhook URL"
+    echo " [3] Kembali"
+    echo "=================================================="
+    echo -n " Pilih Opsi [1-3]: "
+    read -r WCHOICE
+
+    case "$WCHOICE" in
+        1)
+            echo ""
+            if [ -z "$WEBHOOK_URL" ]; then
+                echo "❌ Webhook URL belum diatur!"
+            else
+                echo " 📤 Mengirim pesan test..."
+                send_webhook "🔗 **[ReconnectX]** Test pesan berhasil dari perangkat ${TARGET_ADB:-'Unknown'}!"
+                echo " ✅ Terkirim!"
+            fi
+            sleep 2
+            menu_webhook
+            ;;
+        2)
+            echo ""
+            echo -n " Masukkan Webhook URL: "
+            read -r WEBHOOK_URL
+            save_config
+            echo " ✅ Disimpan!"
+            sleep 2
+            menu_webhook
+            ;;
+        3) show_menu ;;
+        *) menu_webhook ;;
+    esac
+}
+
+# ==========================================
 # MAIN DASHBOARD MENU
 # ==========================================
 show_menu() {
+    # Refresh deteksi ADB setiap kembali ke menu utama
+    TARGET_ADB=$(adb devices 2>/dev/null | grep -w "device" | awk 'NR==1 {print $1}')
+
     clear
     echo "=================================================="
-    echo "            ReconnectX Hybrid Dashboard           "
+    echo "            ReconnectX Dynamic Dashboard           "
     echo "=================================================="
+    echo " Target ADB     : ${TARGET_ADB:-'Tidak Ada Perangkat'}"
     echo " Target Game    : ${PLACE_ID:-'Belum Diatur'}"
     echo " Webhook Status : ${WEBHOOK_URL:-'Belum Diatur'}"
     echo "--------------------------------------------------"
     echo " [1] REJOIN MENU (Set Place ID / Start)"
     echo " [2] SETTINGS (Kill Mode / Clear Cache)"
-    echo " [3] SET DISCORD WEBHOOK"
+    echo " [3] DISCORD WEBHOOK MENU"
     echo " [4] RESET CONFIG"
     echo " [0] EXIT"
     echo "=================================================="
@@ -258,23 +335,10 @@ show_menu() {
     case "$CHOICE" in
         1) menu_rejoin ;;
         2) menu_settings ;;
-        3) 
-            echo ""
-            echo -n " Masukkan Discord Webhook URL: "
-            read -r WEBHOOK_URL
-            save_config
-            
-            echo " 📤 Menyimpan konfigurasi webhook..."
-            send_webhook "🔗 **[ReconnectX]** Webhook berhasil dihubungkan!"
-            
-            echo ""
-            echo " ✅ Selesai!"
-            sleep 2
-            show_menu
-            ;;
+        3) menu_webhook ;;
         4)
             rm -f "$CONFIG_FILE"
-            echo "🧹 Config berhasil di-reset!"
+            echo "🧹 Config di-reset!"
             sleep 1
             show_menu
             ;;
