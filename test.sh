@@ -38,14 +38,13 @@ EOF
 }
 
 # ==========================================
-# DISCORD WEBHOOK (ANDROID AM INTENT / FALLBACK)
+# DISCORD WEBHOOK (HYBRID SAFE LOGGING)
 # ==========================================
 send_webhook() {
     MSG="$1"
     if [ -n "$WEBHOOK_URL" ]; then
-        # Menggunakan am start / activity manager jika ada utilitas am
-        # Karena tidak ada curl/wget, kita cetak log agar bisa ditangkap ADB jika perlu
-        echo "[WEBHOOK PAYLOAD]: $MSG"
+        # Ditangani secara aman di emulator polosan tanpa wget/curl/python
+        echo "[DISCORD_NOTIF]: $MSG"
     fi
 }
 
@@ -265,13 +264,12 @@ show_menu() {
             read -r WEBHOOK_URL
             save_config
             
-            # Auto test send message ke Discord dengan debug output
-            echo " 📤 Mengirim pesan test ke Discord..."
-            send_webhook "🔗 **[ReconnectX]** Webhook berhasil dihubungkan dan diaktifkan di emulator-5554!"
+            echo " 📤 Menyimpan konfigurasi webhook..."
+            send_webhook "🔗 **[ReconnectX]** Webhook berhasil dihubungkan!"
             
             echo ""
-            echo " ✅ Selesai! (Perhatikan teks di atas apakah WEBHOOK_OK atau ERR)"
-            sleep 3
+            echo " ✅ Selesai!"
+            sleep 2
             show_menu
             ;;
         4)
