@@ -15,14 +15,8 @@ AUTO_REJOIN="ON"
 KILL_MODE="OFF"
 AUTO_CLEAR_CACHE="OFF"
 
-# Deteksi Lingkungan Otomatis (Termux vs PC)
-if [ -d "/data/data/com.termux" ]; then
-    TARGET_ADB="127.0.0.1:5555" # Default Cloudphone / ADB Lokal Termux
-    IS_TERMUX=1
-else
-    TARGET_ADB="127.0.0.1:5555" # Ubah port jika pakai LDPlayer/MuMu di PC (misal: 127.0.0.1:7555)
-    IS_TERMUX=0
-fi
+# Target ADB Khusus Emulator
+TARGET_ADB="emulator-5554"
 
 # ==========================================
 # FUNGSI LOAD & SAVE CONFIG
@@ -90,7 +84,7 @@ start_engine() {
     echo " Tekan [CTRL + C] untuk menghentikan."
     echo ""
 
-    echo " 🔌 Menghubungkan jalur ADB..."
+    echo " 🔌 Menghubungkan jalur ADB ke $TARGET_ADB..."
     adb connect "$TARGET_ADB" > /dev/null 2>&1
     sleep 2
 
@@ -103,9 +97,6 @@ start_engine() {
         CURRENT_TIME=$(date +%s)
         ELAPSED_TIME=$((CURRENT_TIME - SESSION_START_TIME))
 
-        # --------------------------------------------------
-        # CEK APAKAH SUDAH 1 JAM BERJALAN (SCHEDULED RESTART)
-        # --------------------------------------------------
         if [ "$ELAPSED_TIME" -ge "$RECONNECT_INTERVAL" ]; then
             TIME_STAMP=$(date '+%H:%M:%S')
             echo "[$TIME_STAMP] ⏰ Waktu 1 jam tercapai. Melakukan scheduled restart..."
@@ -122,9 +113,6 @@ start_engine() {
             continue
         fi
 
-        # --------------------------------------------------
-        # MONITORING STATUS APLIKASI
-        # --------------------------------------------------
         if check_roblox; then
             if [ "$IS_RUNNING" -eq 0 ]; then
                 TIME_STAMP=$(date '+%H:%M:%S')
@@ -279,6 +267,13 @@ show_menu() {
             echo -n " Masukkan Discord Webhook URL: "
             read -r WEBHOOK_URL
             save_config
+            
+            # Auto test send message ke Discord
+            echo " 📤 Mengirim pesan test ke Discord..."
+            send_webhook "🔗 **[ReconnectX]** Webhook berhasil dihubungkan dan diaktifkan!"
+            
+            echo " ✅ Selesai!"
+            sleep 2
             show_menu
             ;;
         4)
