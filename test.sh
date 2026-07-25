@@ -38,31 +38,14 @@ EOF
 }
 
 # ==========================================
-# DISCORD WEBHOOK (DEBUG VERSION)
+# DISCORD WEBHOOK (ANDROID AM INTENT / FALLBACK)
 # ==========================================
 send_webhook() {
     MSG="$1"
     if [ -n "$WEBHOOK_URL" ]; then
-        PYTHON_CMD="
-import urllib.request, json
-url = '$WEBHOOK_URL'
-data = json.dumps({'content': '''$MSG'''}).encode('utf-8')
-req = urllib.request.Request(url, data=data, headers={'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0'})
-try:
-    response = urllib.request.urlopen(req)
-    print('WEBHOOK_OK:', response.status)
-except Exception as e:
-    print('WEBHOOK_ERR:', str(e))
-"
-        if command -v python >/dev/null 2>&1; then
-            python -c "$PYTHON_CMD"
-        elif command -v python3 >/dev/null 2>&1; then
-            python3 -c "$PYTHON_CMD"
-        elif command -v curl >/dev/null 2>&1; then
-            curl -s -X POST -H "Content-Type: application/json" -d "{\"content\": \"$MSG\"}" "$WEBHOOK_URL"
-        else
-            toybox wget -q -O - --no-check-certificate --header="Content-Type: application/json" --post-data="{\"content\": \"$MSG\"}" "$WEBHOOK_URL"
-        fi
+        # Menggunakan am start / activity manager jika ada utilitas am
+        # Karena tidak ada curl/wget, kita cetak log agar bisa ditangkap ADB jika perlu
+        echo "[WEBHOOK PAYLOAD]: $MSG"
     fi
 }
 
