@@ -1,6 +1,15 @@
 #!/system/bin/sh
 
 # ==========================================
+# AUTO-INSTALL DEPENDENCY (ADB & CURL)
+# ==========================================
+if ! command -v adb >/dev/null 2>&1 || ! command -v curl >/dev/null 2>&1; then
+    echo "📦 Mempersiapkan dependensi sistem (adb & curl)..."
+    pkg update -y >/dev/null 2>&1
+    pkg install android-tools curl -y >/dev/null 2>&1
+fi
+
+# ==========================================
 # KONFIGURASI FILE & TARGET (DYNAMIC ADB)
 # ==========================================
 CONFIG_FILE="/sdcard/.reconnectx_config"
@@ -15,8 +24,8 @@ AUTO_REJOIN="ON"
 KILL_MODE="OFF"
 AUTO_CLEAR_CACHE="ON"
 
-# Deteksi Otomatis Target ADB yang Aktif (Tanpa Default)
-TARGET_ADB=$(adb devices 2>/dev/null | grep -w "device" | awk 'NR==1 {print $1}')
+# Deteksi Otomatis Target ADB yang Aktif (Akurat)
+TARGET_ADB=$(adb devices 2>/dev/null | grep -E "\bdevice\b" | grep -v "List" | awk '{print $1}' | head -n 1)
 
 # ==========================================
 # FUNGSI LOAD & SAVE CONFIG
@@ -36,15 +45,6 @@ KILL_MODE="$KILL_MODE"
 AUTO_CLEAR_CACHE="$AUTO_CLEAR_CACHE"
 EOF
 }
-
-# ==========================================
-# AUTO-INSTALL DEPENDENCY (ADB & CURL)
-# ==========================================
-if ! command -v adb >/dev/null 2>&1 || ! command -v curl >/dev/null 2>&1; then
-    echo "📦 Mempersiapkan dependensi sistem (adb & curl)..."
-    pkg update -y >/dev/null 2>&1
-    pkg install android-tools curl -y >/dev/null 2>&1
-fi
 
 # ==========================================
 # DISCORD WEBHOOK (TERMUX / LINUX CURL METHOD)
@@ -313,7 +313,7 @@ menu_webhook() {
 # ==========================================
 show_menu() {
     # Refresh deteksi ADB setiap kembali ke menu utama
-    TARGET_ADB=$(adb devices 2>/dev/null | grep -w "device" | awk 'NR==1 {print $1}')
+    TARGET_ADB=$(adb devices 2>/dev/null | grep -E "\bdevice\b" | grep -v "List" | awk '{print $1}' | head -n 1)
 
     clear
     echo "=================================================="
