@@ -38,29 +38,30 @@ EOF
 }
 
 # ==========================================
-# DISCORD WEBHOOK (ROBUST PYTHON / CURL METHOD)
+# DISCORD WEBHOOK (DEBUG VERSION)
 # ==========================================
 send_webhook() {
     MSG="$1"
     if [ -n "$WEBHOOK_URL" ]; then
-        PAYLOAD="{\"content\": \"$MSG\"}"
-        
-        # Menggunakan Python di Android agar tembus HTTPS/SSL Discord
-        if command -v python >/dev/null 2>&1; then
-            python -c "
+        PYTHON_CMD="
 import urllib.request, json
 url = '$WEBHOOK_URL'
 data = json.dumps({'content': '''$MSG'''}).encode('utf-8')
 req = urllib.request.Request(url, data=data, headers={'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0'})
 try:
-    urllib.request.urlopen(req)
+    response = urllib.request.urlopen(req)
+    print('WEBHOOK_OK:', response.status)
 except Exception as e:
-    pass
-" > /dev/null 2>&1
+    print('WEBHOOK_ERR:', str(e))
+"
+        if command -v python >/dev/null 2>&1; then
+            python -c "$PYTHON_CMD"
+        elif command -v python3 >/dev/null 2>&1; then
+            python3 -c "$PYTHON_CMD"
         elif command -v curl >/dev/null 2>&1; then
-            curl -s -X POST -H "Content-Type: application/json" -d "$PAYLOAD" "$WEBHOOK_URL" > /dev/null 2>&1
+            curl -s -X POST -H "Content-Type: application/json" -d "{\"content\": \"$MSG\"}" "$WEBHOOK_URL"
         else
-            toybox wget -q -O - --no-check-certificate --header="Content-Type: application/json" --post-data="$PAYLOAD" "$WEBHOOK_URL" > /dev/null 2>&1
+            toybox wget -q -O - --no-check-certificate --header="Content-Type: application/json" --post-data="{\"content\": \"$MSG\"}" "$WEBHOOK_URL"
         fi
     fi
 }
@@ -281,12 +282,13 @@ show_menu() {
             read -r WEBHOOK_URL
             save_config
             
-            # Auto test send message ke Discord
+            # Auto test send message ke Discord dengan debug output
             echo " 📤 Mengirim pesan test ke Discord..."
             send_webhook "🔗 **[ReconnectX]** Webhook berhasil dihubungkan dan diaktifkan di emulator-5554!"
             
-            echo " ✅ Selesai!"
-            sleep 2
+            echo ""
+            echo " ✅ Selesai! (Perhatikan teks di atas apakah WEBHOOK_OK atau ERR)"
+            sleep 3
             show_menu
             ;;
         4)
