@@ -10,7 +10,7 @@ if ! command -v adb >/dev/null 2>&1 || ! command -v curl >/dev/null 2>&1; then
 fi
 
 # ==========================================
-# KONFIGURASI FILE & TARGET (DYNAMIC ADB)
+# KONFIGURASI FILE & TARGET (LOCALHOST ADB)
 # ==========================================
 CONFIG_FILE="/sdcard/.reconnectx_config"
 PACKAGE_NAME="com.roblox.client"
@@ -24,8 +24,15 @@ AUTO_REJOIN="ON"
 KILL_MODE="OFF"
 AUTO_CLEAR_CACHE="ON"
 
-# Deteksi Otomatis Target ADB yang Aktif (Akurat)
-TARGET_ADB=$(adb devices 2>/dev/null | grep -E "\bdevice\b" | grep -v "List" | awk '{print $1}' | head -n 1)
+# Auto Connect ke Localhost ADB (Port umum emulator lokal: 5555 atau 5554)
+adb connect 127.0.0.1:5555 > /dev/null 2>&1
+adb connect 127.0.0.1:5554 > /dev/null 2>&1
+
+# Deteksi Otomatis Target ADB Localhost yang Aktif
+TARGET_ADB=$(adb devices 2>/dev/null | grep -E "127\.0\.0\.1:[0-9]+" | grep -E "\bdevice\b" | awk '{print $1}' | head -n 1)
+if [ -z "$TARGET_ADB" ]; then
+    TARGET_ADB=$(adb devices 2>/dev/null | grep -E "\bdevice\b" | grep -v "List" | awk '{print $1}' | head -n 1)
+fi
 
 # ==========================================
 # FUNGSI LOAD & SAVE CONFIG
@@ -74,7 +81,7 @@ check_roblox() {
 start_engine() {
     if [ -z "$TARGET_ADB" ]; then
         clear
-        echo "❌ Error: Tidak ada perangkat ADB yang terdeteksi!"
+        echo "❌ Error: Tidak ada perangkat ADB localhost yang terdeteksi!"
         sleep 2
         show_menu
         return
@@ -87,7 +94,7 @@ start_engine() {
 
     clear
     echo "=================================================="
-    echo "       ReconnectX Dynamic Engine (65M Timer)      "
+    echo "       ReconnectX Localhost Engine (65M Timer)    "
     echo "=================================================="
     echo " Target   : $PLACE_ID"
     echo " Rejoin   : $AUTO_REJOIN | Kill: $KILL_MODE"
@@ -211,7 +218,7 @@ menu_rejoin() {
         3)
             if [ -z "$TARGET_ADB" ]; then
                 echo ""
-                echo "❌ Error: Tidak ada perangkat ADB yang terhubung!"
+                echo "❌ Error: Tidak ada perangkat ADB localhost yang terhubung!"
                 sleep 2
                 menu_rejoin
             elif [ -z "$PLACE_ID" ]; then
@@ -312,12 +319,17 @@ menu_webhook() {
 # MAIN DASHBOARD MENU
 # ==========================================
 show_menu() {
-    # Refresh deteksi ADB setiap kembali ke menu utama
-    TARGET_ADB=$(adb devices 2>/dev/null | grep -E "\bdevice\b" | grep -v "List" | awk '{print $1}' | head -n 1)
+    # Refresh deteksi ADB localhost setiap kembali ke menu utama
+    adb connect 127.0.0.1:5555 > /dev/null 2>&1
+    adb connect 127.0.0.1:5554 > /dev/null 2>&1
+    TARGET_ADB=$(adb devices 2>/dev/null | grep -E "127\.0\.0\.1:[0-9]+" | grep -E "\bdevice\b" | awk '{print $1}' | head -n 1)
+    if [ -z "$TARGET_ADB" ]; then
+        TARGET_ADB=$(adb devices 2>/dev/null | grep -E "\bdevice\b" | grep -v "List" | awk '{print $1}' | head -n 1)
+    fi
 
     clear
     echo "=================================================="
-    echo "            ReconnectX Dynamic Dashboard           "
+    echo "            ReconnectX Localhost Dashboard        "
     echo "=================================================="
     echo " Target ADB     : ${TARGET_ADB:-'Tidak Ada Perangkat'}"
     echo " Target Game    : ${PLACE_ID:-'Belum Diatur'}"
