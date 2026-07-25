@@ -38,16 +38,29 @@ EOF
 }
 
 # ==========================================
-# DISCORD WEBHOOK (HYBRID CURL / WGET)
+# DISCORD WEBHOOK (ROBUST PYTHON / CURL METHOD)
 # ==========================================
 send_webhook() {
     MSG="$1"
     if [ -n "$WEBHOOK_URL" ]; then
         PAYLOAD="{\"content\": \"$MSG\"}"
-        if command -v curl >/dev/null 2>&1; then
+        
+        # Menggunakan Python di Android agar tembus HTTPS/SSL Discord
+        if command -v python >/dev/null 2>&1; then
+            python -c "
+import urllib.request, json
+url = '$WEBHOOK_URL'
+data = json.dumps({'content': '''$MSG'''}).encode('utf-8')
+req = urllib.request.Request(url, data=data, headers={'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0'})
+try:
+    urllib.request.urlopen(req)
+except Exception as e:
+    pass
+" > /dev/null 2>&1
+        elif command -v curl >/dev/null 2>&1; then
             curl -s -X POST -H "Content-Type: application/json" -d "$PAYLOAD" "$WEBHOOK_URL" > /dev/null 2>&1
         else
-            toybox wget -q -O - --header="Content-Type: application/json" --post-data="$PAYLOAD" "$WEBHOOK_URL" > /dev/null 2>&1
+            toybox wget -q -O - --no-check-certificate --header="Content-Type: application/json" --post-data="$PAYLOAD" "$WEBHOOK_URL" > /dev/null 2>&1
         fi
     fi
 }
@@ -270,7 +283,7 @@ show_menu() {
             
             # Auto test send message ke Discord
             echo " 📤 Mengirim pesan test ke Discord..."
-            send_webhook "🔗 **[ReconnectX]** Webhook berhasil dihubungkan dan diaktifkan!"
+            send_webhook "🔗 **[ReconnectX]** Webhook berhasil dihubungkan dan diaktifkan di emulator-5554!"
             
             echo " ✅ Selesai!"
             sleep 2
